@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>幻想物语RE - 更新代码生成器V5</title>
+<style>
+    body { font-family: 'Microsoft YaHei', sans-serif; background-color: #f4f4f9; padding: 20px; margin: 0; }
+    .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+    h1 { color: #2c3e50; text-align: center; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 5px; }
+    h2 { color: #34495e; font-size: 18px; margin-top: 0; display: flex; align-items: center; }
+    .box { border: 2px solid #e0e6ed; padding: 20px; margin-bottom: 25px; border-radius: 8px; background: #fbfcfd; }
+    .box-client { border-color: #3498db; background-color: #ebf5fb; }
+    .box-server { border-color: #2ecc71; background-color: #eafaf1; }
+    input[type="text"] { padding: 10px; margin: 5px 0; border: 1px solid #ccd1d9; border-radius: 4px; font-size: 14px; outline: none; box-sizing: border-box; }
+    input[type="text"]:focus { border-color: #3498db; }
+    button { padding: 8px 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.3s; color: white; }
+    .delete-btn { background-color: #e74c3c; margin-left: 10px; }
+    .delete-btn:hover { background-color: #c0392b; }
+    .add-btn { background-color: #3498db; margin-top: 5px; margin-bottom: 15px; }
+    .add-btn:hover { background-color: #2980b9; }
+    .generate-btn { width: 100%; font-size: 20px; padding: 15px; background-color: #9b59b6; margin-top: 10px; }
+    .generate-btn:hover { background-color: #8e44ad; }
+    textarea { width: 100%; padding: 15px; border: 2px solid #bdc3c7; border-radius: 6px; resize: vertical; font-family: 'Microsoft YaHei', sans-serif; font-size: 14px; background-color: #f8f9fa; box-sizing: border-box; line-height: 1.6; }
+    .item-row { margin-bottom: 10px; display: flex; align-items: center; }
+    .hint { font-size: 13px; color: #7f8c8d; margin-bottom: 15px; line-height: 1.5; }
+    .log-label { font-weight: bold; color: #2c3e50; margin-top: 10px; display: block; }
+    .section-title { font-size: 15px; font-weight: bold; color: #555; margin: 15px 0 5px 0; border-bottom: 1px dashed #ccc; padding-bottom: 5px;}
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🛠️ 幻想物语RE 更新包制作台</h1>
+    <p style="text-align: center; color: #7f8c8d; margin-bottom: 20px;">作者：<b>白咕</b> | V5：实现双端独立文件清理&更新</p>
+
+    <!-- 反向读取区 -->
+    <div class="box" style="background-color: #fef9e7; border-color: #f1c40f; padding: 15px;">
+        <h2 style="color: #d35400; margin-bottom: 5px;">🔄 逆向魔法：读取旧代码</h2>
+        <textarea id="import-code" style="height: 60px;" placeholder="粘贴旧的 bat 代码，点击下方按钮自动填入所有表格..."></textarea>
+        <button style="background-color: #f39c12; width: 100%; margin-top: 10px;" onclick="parseCode()">⬇️ 一键提取旧配置</button>
+    </div>
+
+    <!-- 更新日志区 -->
+    <div class="box" style="border-color: #9b59b6; background-color: #faf5fc;">
+        <h2 style="color: #8e44ad;">📝 编写更新公告</h2>
+        <div class="hint"></div>
+        <label class="log-label">✨ 最新日志 ：</label>
+        <textarea id="latest-log" style="height: 80px; margin-bottom: 15px;" placeholder="例如：&#10;● 修复挖砍的箱子有概率开出空气的bug"></textarea>
+        <label class="log-label">📜 以往更新日志：</label>
+        <textarea id="past-log" style="height: 80px;" placeholder="例如：&#10;● 删除Waystones Teleport Pets模组"></textarea>
+    </div>
+
+    <!-- 客户端独立配置区 -->
+    <div class="box box-client">
+        <h2>💻 客户端专属配置区</h2>
+        <div class="hint">此区域只在玩家选择 [1]更新客户端 时执行。程序会自动添加 <b>.minecraft\versions\幻想物语RE\</b> 前缀。</div>
+        
+        <div class="section-title">🗑️ 客户端 - 删除旧文件</div>
+        <div id="client-delete-list"></div>
+        <button class="add-btn" onclick="addClientDeleteRow()">+ 添加客户端删除任务</button>
+
+        <div class="section-title">➕ 客户端 - 替换/添加新文件</div>
+        <div id="client-add-list"></div>
+        <button class="add-btn" onclick="addClientUpdateRow()">+ 添加客户端添加任务</button>
+    </div>
+
+    <!-- 服务端独立配置区 -->
+    <div class="box box-server">
+        <h2>🖥️ 服务端专属配置区</h2>
+        <div class="hint">此区域只在玩家选择 [2]更新服务端 时执行。此处填写相对于服务端的根目录路径。</div>
+        
+        <div class="section-title">🗑️ 服务端 - 删除旧文件</div>
+        <div id="server-delete-list"></div>
+        <button class="add-btn" style="background-color: #27ae60;" onclick="addServerDeleteRow()">+ 添加服务端删除任务</button>
+
+        <div class="section-title">➕ 服务端 - 替换/添加新文件</div>
+        <div id="server-add-list"></div>
+        <button class="add-btn" style="background-color: #27ae60;" onclick="addServerUpdateRow()">+ 添加服务端添加任务</button>
+    </div>
+
+    <button class="generate-btn" onclick="generateCode()">🚀 魔法生成！自动更新补丁程序!</button>
+
+    <div class="box" style="margin-top: 20px; border-color: #34495e;">
+        <h2 style="color: #2c3e50;">📋 复制下方代码，另存为 UTF-8 格式：</h2>
+        <textarea id="result-code" style="height: 300px;" readonly placeholder="点击上方生成按钮..."></textarea>
+    </div>
+</div>
+
+<script>
+    window.onload = function() { 
+        addClientDeleteRow(); addClientUpdateRow(); 
+        addServerDeleteRow(); addServerUpdateRow(); 
+    };
+
+    function createDelRow(containerId, val = "") {
+        const div = document.createElement('div');
+        div.className = 'item-row';
+        div.innerHTML = `<input type="text" placeholder="相对路径 (如: mods\\旧模组.jar)" class="${containerId}-input" style="flex: 1;" value="${val}"> 
+                         <button class="delete-btn" onclick="this.parentElement.remove()">移除</button>`;
+        document.getElementById(containerId).appendChild(div);
+    }
+    
+    function createAddRow(containerId, file = "", target = "") {
+        const div = document.createElement('div');
+        div.className = 'item-row';
+        div.innerHTML = `
+            <input type="text" placeholder="新文件名称 (如: 新文件.jar)" class="${containerId}-file" style="flex: 1; margin-right: 10px;" value="${file}">
+            <span style="color:#7f8c8d; font-weight:bold; margin-right:10px;">➜</span>
+            <input type="text" placeholder="目标文件夹 (如: mods\\)" class="${containerId}-target" style="flex: 1;" value="${target}">
+            <button class="delete-btn" onclick="this.parentElement.remove()">移除</button>
+        `;
+        document.getElementById(containerId).appendChild(div);
+    }
+
+    function addClientDeleteRow(val="") { createDelRow('client-delete-list', val); }
+    function addClientUpdateRow(f="", t="") { createAddRow('client-add-list', f, t); }
+    function addServerDeleteRow(val="") { createDelRow('server-delete-list', val); }
+    function addServerUpdateRow(f="", t="") { createAddRow('server-add-list', f, t); }
+
+    function parseCode() {
+        const code = document.getElementById('import-code').value;
+        if (!code.trim()) { alert("请先粘贴代码！"); return; }
+        document.getElementById('client-delete-list').innerHTML = '';
+        document.getElementById('client-add-list').innerHTML = '';
+        document.getElementById('server-delete-list').innerHTML = '';
+        document.getElementById('server-add-list').innerHTML = '';
+        document.getElementById('latest-log').value = ''; 
+        document.getElementById('past-log').value = '';
+        const parseLog = (regex, targetId) => {
+            const match = code.match(regex);
+            if (match) {
+                let lines = match[1].split('\n');
+                let extract =[];
+                for (let line of lines) {
+                    if (line.includes("===") || line.includes("【 最新日志 】") || line.includes("【 以往更新日志 】")) continue;
+                    if (line.includes("echo %ESC%")) {
+                        let textMatch = line.match(/echo %ESC%\[\d+m(.*?)%ESC%\[0m/);
+                        if(textMatch) extract.push(textMatch[1]);
+                    } else if (line.startsWith("echo.") || line.trim()==="") {
+                        extract.push("");
+                    }
+                }
+                document.getElementById(targetId).value = extract.join('\n').trim();
+            }
+        };
+        parseLog(/:: --- BEGIN LATEST LOG ---\n([\s\S]*?):: --- END LATEST LOG ---/, 'latest-log');
+        parseLog(/:: --- BEGIN PAST LOG ---\n([\s\S]*?):: --- END PAST LOG ---/, 'past-log');
+        const clientMatch = code.match(/:client([\s\S]*?)goto cleanup_and_exit/);
+        const serverMatch = code.match(/:server([\s\S]*?)goto cleanup_and_exit/);
+        if (clientMatch) {
+            const clientCode = clientMatch[1];
+            const delReg = /del \/f \/q "\.minecraft\\versions\\幻想物语RE\\([^"]+)"/g;
+            let m; while ((m = delReg.exec(clientCode)) !== null) addClientDeleteRow(m[1]);
+            const addReg = /copy \/y "新文件\\([^"]+)" "\.minecraft\\versions\\幻想物语RE\\([^"]+)"/g;
+            while ((m = addReg.exec(clientCode)) !== null) addClientUpdateRow(m[1], m[2]);
+        }
+        if (serverMatch) {
+            const serverCode = serverMatch[1];
+            const delReg = /del \/f \/q "([^"]+)"/g;
+            let m; while ((m = delReg.exec(serverCode)) !== null) { 
+                if(m[1] !== "%~f0") addServerDeleteRow(m[1]); 
+            }
+            const addReg = /copy \/y "新文件\\([^"]+)" "([^"]+)"/g;
+            while ((m = addReg.exec(serverCode)) !== null) addServerUpdateRow(m[1], m[2]);
+        }
+        if(document.getElementById('client-delete-list').innerHTML === '') addClientDeleteRow();
+        if(document.getElementById('client-add-list').innerHTML === '') addClientUpdateRow();
+        if(document.getElementById('server-delete-list').innerHTML === '') addServerDeleteRow();
+        if(document.getElementById('server-add-list').innerHTML === '') addServerUpdateRow();
+        alert(`魔法解析成功！`);
+    }
+
+    function generateCode() {
+        const latestLogText = document.getElementById('latest-log').value.trim();
+        const pastLogText = document.getElementById('past-log').value.trim();
+        let logCode = "";
+        if (latestLogText) {
+            logCode += ":: --- BEGIN LATEST LOG ---\n";
+            logCode += "echo %ESC%[92m==================================================%ESC%[0m\n";
+            logCode += "echo %ESC%[97m                 【 最新日志 】                   %ESC%[0m\n";
+            for(let line of latestLogText.split('\n')) {
+                logCode += (line.trim() === "") ? "echo.\n" : `echo %ESC%[96m${line}%ESC%[0m\n`;
+            }
+            logCode += ":: --- END LATEST LOG ---\n";
+        }
+        if (pastLogText) {
+            if(latestLogText) logCode += "echo.\n";
+            logCode += ":: --- BEGIN PAST LOG ---\n";
+            logCode += "echo %ESC%[92m==================================================%ESC%[0m\n";
+            logCode += "echo %ESC%[97m               【 以往更新日志 】                 %ESC%[0m\n";
+            for(let line of pastLogText.split('\n')) {
+                logCode += (line.trim() === "") ? "echo.\n" : `echo %ESC%[93m${line}%ESC%[0m\n`;
+            }
+            logCode += ":: --- END PAST LOG ---\n";
+        }
+        if (logCode !== "") logCode += "echo %ESC%[92m==================================================%ESC%[0m\n";
+
+        const getVals = (selector) => Array.from(document.querySelectorAll(selector)).map(i => i.value.trim()).filter(v => v);
+        
+        // 客户端逻辑生成
+        let clientDeleteCode = ""; let clientAddCode = "";
+        getVals('.client-delete-list-input').forEach(val => {
+            clientDeleteCode += `if exist ".minecraft\\versions\\幻想物语RE\\${val}" (\n    del /f /q ".minecraft\\versions\\幻想物语RE\\${val}"\n    echo %ESC%[91m[删除]%ESC%[92m 已删除旧文件: %ESC%[97m${val}%ESC%[0m\n)\n`;
+        });
+        const clientFiles = document.querySelectorAll('.client-add-list-file');
+        const clientTargets = document.querySelectorAll('.client-add-list-target');
+        clientFiles.forEach((fInput, i) => {
+            let fVal = fInput.value.trim(); let tVal = clientTargets[i].value.trim();
+            if(fVal && tVal) {
+                if(!tVal.endsWith("\\")) tVal += "\\"; 
+                clientAddCode += `if not exist ".minecraft\\versions\\幻想物语RE\\${tVal}" mkdir ".minecraft\\versions\\幻想物语RE\\${tVal}"\n`;
+                clientAddCode += `copy /y "新文件\\${fVal}" ".minecraft\\versions\\幻想物语RE\\${tVal}" >nul\n`;
+                clientAddCode += `echo %ESC%[96m[添加]%ESC%[92m 已将 %ESC%[97m${fVal}%ESC%[92m 添加到目录 %ESC%[97m${tVal}%ESC%[0m\n`;
+            }
+        });
+
+        // 服务端逻辑生成
+        let serverDeleteCode = ""; let serverAddCode = "";
+        getVals('.server-delete-list-input').forEach(val => {
+            serverDeleteCode += `if exist "${val}" (\n    del /f /q "${val}"\n    echo %ESC%[91m[删除]%ESC%[92m 已删除旧文件: %ESC%[97m${val}%ESC%[0m\n)\n`;
+        });
+        const serverFiles = document.querySelectorAll('.server-add-list-file');
+        const serverTargets = document.querySelectorAll('.server-add-list-target');
+        serverFiles.forEach((fInput, i) => {
+            let fVal = fInput.value.trim(); let tVal = serverTargets[i].value.trim();
+            if(fVal && tVal) {
+                if(!tVal.endsWith("\\")) tVal += "\\"; 
+                serverAddCode += `if not exist "${tVal}" mkdir "${tVal}"\n`;
+                serverAddCode += `copy /y "新文件\\${fVal}" "${tVal}" >nul\n`;
+                serverAddCode += `echo %ESC%[96m[添加]%ESC%[92m 已将 %ESC%[97m${fVal}%ESC%[92m 添加到目录 %ESC%[97m${tVal}%ESC%[0m\n`;
+            }
+        });
+
+        const fullCode = `@echo off
+chcp 65001 >nul
+:: 开启高级色彩模式
+for /F "tokens=1,2 delims=#" %%a in ('"prompt #$H#$E# & echo on & for %%b in (1) do rem"') do set ESC=%%b
+color 0A
+title 幻想物语RE - 自动更新补丁
+
+:menu
+cls
+echo %ESC%[92m==================================================%ESC%[0m
+echo %ESC%[97m      欢迎使用整合包自动更新程序 - 作者:白咕      %ESC%[0m
+echo %ESC%[92m==================================================%ESC%[0m
+echo.
+${logCode}
+echo 请选择您当前要更新的环境：
+echo.
+echo %ESC%[97m[1] 更新客户端! (将补丁程序放在客户端根目录 与.minecraft同个目录下)%ESC%[0m
+echo %ESC%[97m[2] 更新服务端! (将补丁程序放在服务端根目录 与run.bat同个目录下)%ESC%[0m
+echo %ESC%[97m[3] 退出程序%ESC%[0m
+echo.
+set /p choice=%ESC%[92m请输入数字 (1, 2 或 3) 并按回车键: %ESC%[0m
+
+if "%choice%"=="1" goto client
+if "%choice%"=="2" goto server
+if "%choice%"=="3" goto cleanup_and_exit
+goto menu
+
+:client
+echo.
+echo %ESC%[93m正在检测客户端环境...%ESC%[0m
+if not exist ".minecraft" (
+    echo %ESC%[91m[错误] 找不到 .minecraft 文件夹！%ESC%[0m
+    echo 请确认您把本程序放在了客户端的根目录里。
+    echo.
+    pause
+    goto menu
+)
+echo %ESC%[92m检测通过！开始更新客户端文件...%ESC%[0m
+echo %ESC%[92m--------------------------------------------------%ESC%[0m
+${clientDeleteCode}${clientAddCode}
+echo %ESC%[92m--------------------------------------------------%ESC%[0m
+echo %ESC%[97m客户端更新全部完成！按任意键将清理临时文件并退出...%ESC%[0m
+pause >nul
+goto cleanup_and_exit
+
+:server
+echo.
+echo %ESC%[93m正在检测服务端环境...%ESC%[0m
+if not exist "run.bat" (
+    echo %ESC%[91m[错误] 找不到 run.bat 文件！%ESC%[0m
+    echo 请确认您把本程序放在了服务端的根目录里。
+    echo.
+    pause
+    goto menu
+)
+echo %ESC%[92m检测通过！开始更新服务端文件...%ESC%[0m
+echo %ESC%[92m--------------------------------------------------%ESC%[0m
+${serverDeleteCode}${serverAddCode}
+echo %ESC%[92m--------------------------------------------------%ESC%[0m
+echo %ESC%[97m服务端更新全部完成！按任意键将清理临时文件并退出...%ESC%[0m
+pause >nul
+goto cleanup_and_exit
+
+:cleanup_and_exit
+cls
+echo %ESC%[93m正在进行最后的清理工作，请稍候...%ESC%[0m
+:: --- 彻底清理解压出的文件夹 ---
+if exist "新文件" (
+    rd /s /q "新文件"
+    echo %ESC%[92m[清理] 已成功移除临时文件夹 "新文件"%ESC%[0m
+)
+:: --- 程序自毁逻辑 ---
+echo %ESC%[92m[完成] 更新程序即将自动退出并删除自身。%ESC%[0m
+timeout /t 2 >nul
+(goto) 2>nul & del "%~f0" & exit
+`;
+        document.getElementById('result-code').value = fullCode;
+    }
+</script>
+</body>
+</html>
